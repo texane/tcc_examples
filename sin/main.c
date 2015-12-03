@@ -9,12 +9,12 @@
 
 #define L(__s) __s "\n"
 
-static const char* s =							\
-L("void gen_wave(double* x, unsigned int n, double w, double dt)")	\
-L("{")									\
-L("  unsigned int i;")							\
-L("  double t = 0.0;")							\
-L("  for (i = 0; i != n; ++i, t += dt) x[i] = sin(t * w);")		\
+static const char* s =						\
+L("void main(double* x, unsigned int n, double w, double dt)")	\
+L("{")								\
+L("  unsigned int i;")						\
+L("  double t = 0.0;")						\
+L("  for (i = 0; i != n; ++i, t += dt) x[i] = sin(t * w);")	\
 L("}");
 
 int main(int ac, char** av)
@@ -41,7 +41,7 @@ int main(int ac, char** av)
     goto on_error_1;
   }
 
-  f = tcc_get_symbol(tcc, "gen_wave");
+  f = tcc_get_symbol(tcc, "main");
   if (f == NULL)
   {
     printf("symbol not found\n");
