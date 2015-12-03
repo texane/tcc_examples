@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
-#include "libtcc.h"
-#include "../common/common.h"
+#include "../common/dext.h"
 
 
 /* timing */
@@ -29,7 +28,7 @@ static inline uint64_t sub_ticks(uint64_t a, uint64_t b)
 static const char* s =							\
 L("typedef double real_t;")						\
 									\
-L("void matmul")							\
+L("void main")							\
 L("(real_t* y, real_t* a, real_t* x, real_t* b, unsigned int n)")	\
 L("{")									\
 L("  unsigned int i;")							\
@@ -92,32 +91,23 @@ int main(int ac, char** av)
   real_t x[n];
   real_t b[n];
 
-  void (*f)(real_t*, real_t*, real_t*, real_t*, unsigned int);
+  dext_handle_t dext;
 
   uint64_t ticks[2];
   double us[2];
   size_t i;
 
-  TCCState* tcc;
   int err = -1;
 
-  tcc = tcc_new_with_opts();
-  if (tcc == NULL)
+  if (dext_init())
   {
-    printf("creation error\n");
+    printf("dext_init error\n");
     goto on_error_0;
   }
 
-  if (tcc_compile_relocate(tcc, s) == -1)
+  if (dext_open_c(&dext, s, NULL))
   {
-    printf("compilation error\n");
-    goto on_error_1;
-  }
-
-  f = tcc_get_symbol(tcc, "matmul");
-  if (f == NULL)
-  {
-    printf("symbol not found\n");
+    printf("dext_open_c error\n");
     goto on_error_1;
   }
 
@@ -125,17 +115,16 @@ int main(int ac, char** av)
   for (i = 0; i != 100000; ++i)
   {
     matmul_pre(y, a, x, b, n);
-    f(y, a, x, b, n);
+    dext_exec5(&dext, y, a, x, b, n);
   }
   ticks[1] = get_ticks();
   us[0] = (double)sub_ticks(ticks[0], ticks[1]);
 
-  f = matmul;
   ticks[0] = get_ticks();
   for (i = 0; i != 100000; ++i)
   {
     matmul_pre(y, a, x, b, n);
-    f(y, a, x, b, n);
+    matmul(y, a, x, b, n);
   }
   ticks[1] = get_ticks();
   us[1] = (double)sub_ticks(ticks[0], ticks[1]);
@@ -147,7 +136,7 @@ int main(int ac, char** av)
   err = 0;
 
  on_error_1:
-  tcc_delete(tcc);
+  dext_close(&dext);
  on_error_0:
   if (err) printf("error\n");
   return err;
