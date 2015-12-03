@@ -1,27 +1,21 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include "libtcc.h"
+#include "../common/common.h"
 
 
 #define L(__s) __s "\n"
 
 static const char* s =							\
-L("double sin(double);")						\
 L("void gen_wave(double* x, unsigned int n, double w, double dt)")	\
 L("{")									\
 L("  unsigned int i;")							\
 L("  double t = 0.0;")							\
 L("  for (i = 0; i != n; ++i, t += dt) x[i] = sin(t * w);")		\
 L("}");
-
-
-/* main */
-
-static void on_tcc_error(void* err, const char* msg)
-{
-  *(int*)err = -1;
-}
 
 int main(int ac, char** av)
 {
@@ -33,31 +27,17 @@ int main(int ac, char** av)
 
   TCCState* tcc;
   void (*f)(double*, unsigned int, double, double);
-  int err;
 
-  tcc = tcc_new();
+  tcc = tcc_new_with_opts();
   if (tcc == NULL)
   {
     printf("creation error\n");
     goto on_error_0;
   }
 
-  tcc_set_options(tcc, "-static -nostdlib -nostdinc");
-  tcc_set_output_type(tcc, TCC_OUTPUT_MEMORY);
-
-  err = 0;
-  tcc_set_error_func(tcc, &err, on_tcc_error);
-  if ((tcc_compile_string(tcc, s) == -1) || (err))
+  if (tcc_compile_relocate(tcc, s))
   {
-    printf("compilation error\n");
-    goto on_error_1;
-  }
-
-  tcc_add_symbol(tcc, "sin", sin);
-
-  if (tcc_relocate(tcc, TCC_RELOCATE_AUTO) < 0)
-  {
-    printf("relocation error\n");
+    printf("full compile error\n");
     goto on_error_1;
   }
 
@@ -72,11 +52,8 @@ int main(int ac, char** av)
   f(x, n, w, dt);
   for (i = 0; i != n; ++i) printf("%lf\n", x[i]);
 
-  err = 0;
-
  on_error_1:
   tcc_delete(tcc);
  on_error_0:
-  if (err) printf("error\n");
-  return err;
+  return 0;
 }

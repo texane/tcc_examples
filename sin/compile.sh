@@ -14,7 +14,7 @@ fi
 
 $CROSS_COMPILE\gcc \
 -static \
-main.c \
+main.c ../common/common.c \
 -I$TCC_INC_DIR -Wall -O2 \
 -L$TCC_LIB_DIR -ltcc -ldl -lm
 
