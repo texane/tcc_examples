@@ -1,10 +1,5 @@
 #include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include "libtcc.h"
-#include "../common/common.h"
+#include "../common/dext.h"
 
 
 #define L(__s) __s "\n"
@@ -24,36 +19,28 @@ int main(int ac, char** av)
   static const double w = 100 * 2 * 3.1415;
   static const double dt = 0.0001;
   unsigned int i;
+  dext_handle_t dext;
 
-  TCCState* tcc;
-  void (*f)(double*, unsigned int, double, double);
-
-  tcc = tcc_new_with_opts();
-  if (tcc == NULL)
+  if (dext_init())
   {
-    printf("creation error\n");
+    printf("dext_init error\n");
     goto on_error_0;
   }
 
-  if (tcc_compile_relocate(tcc, s))
+  if (dext_open_c(&dext, s, NULL))
   {
-    printf("full compile error\n");
-    goto on_error_1;
-  }
-
-  f = tcc_get_symbol(tcc, "main");
-  if (f == NULL)
-  {
-    printf("symbol not found\n");
+    printf("dext_open_c error\n");
     goto on_error_1;
   }
 
   for (i = 0; i != n; ++i) x[i] = 0.0;
-  f(x, n, w, dt);
+  dext_exec4(&dext, x, n, w, dt);
+  dext_exec4(&dext, x, n, w, dt);
   for (i = 0; i != n; ++i) printf("%lf\n", x[i]);
 
+  dext_close(&dext);
  on_error_1:
-  tcc_delete(tcc);
+  dext_fini();
  on_error_0:
   return 0;
 }
