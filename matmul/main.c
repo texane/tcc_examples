@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "libtcc.h"
+#include "../common/common.h"
 
 
 /* timing */
@@ -100,28 +101,16 @@ int main(int ac, char** av)
   TCCState* tcc;
   int err = -1;
 
-  tcc = tcc_new();
+  tcc = tcc_new_with_opts();
   if (tcc == NULL)
   {
     printf("creation error\n");
     goto on_error_0;
   }
 
-  tcc_set_error_func(tcc, NULL, NULL);
-
-  tcc_set_options(tcc, "-static -nostdlib -nostdinc");
-
-  tcc_set_output_type(tcc, TCC_OUTPUT_MEMORY);
-
-  if (tcc_compile_string(tcc, s) == -1)
+  if (tcc_compile_relocate(tcc, s) == -1)
   {
     printf("compilation error\n");
-    goto on_error_1;
-  }
-
-  if (tcc_relocate(tcc, TCC_RELOCATE_AUTO) < 0)
-  {
-    printf("relocation error\n");
     goto on_error_1;
   }
 

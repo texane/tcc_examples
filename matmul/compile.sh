@@ -3,7 +3,7 @@
 CROSS_COMPILE=
 TCC_DIR=../../tinycc
 
-if `false`; then
+if `true`; then
 TCC_LIB_DIR=$TCC_DIR/install_host/lib64
 TCC_INC_DIR=$TCC_DIR/install_host/include
 else
@@ -14,7 +14,7 @@ fi
 
 $CROSS_COMPILE\gcc \
 -static \
-main.c \
+main.c ../common/common.c \
 -I$TCC_INC_DIR -Wall -O2 \
 -L$TCC_LIB_DIR -ltcc -ldl -lm
 
