@@ -2,7 +2,7 @@
 
 PATCH_DIR=`dirname $0`
 
-< $PATCH_DIR/arm_vfp.patch patch -p1 -N
+< $PATCH_DIR/arm_vfp_eabi.patch patch -p1 -N
 
 make clean distclean
 
