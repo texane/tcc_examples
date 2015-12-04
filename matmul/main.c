@@ -91,7 +91,7 @@ int main(int ac, char** av)
   real_t x[n];
   real_t b[n];
 
-  dext_handle_t dext;
+  dext_handle_t* dext;
 
   uint64_t ticks[2];
   double us[2];
@@ -105,7 +105,8 @@ int main(int ac, char** av)
     goto on_error_0;
   }
 
-  if (dext_open_c(&dext, s, NULL))
+  dext = dext_create_c("matmul", s, NULL);
+  if (dext == NULL)
   {
     printf("dext_open_c error\n");
     goto on_error_1;
@@ -115,7 +116,7 @@ int main(int ac, char** av)
   for (i = 0; i != 100000; ++i)
   {
     matmul_pre(y, a, x, b, n);
-    dext_exec5(&dext, y, a, x, b, n);
+    dext_exec5(dext, y, a, x, b, n);
   }
   ticks[1] = get_ticks();
   us[0] = (double)sub_ticks(ticks[0], ticks[1]);
@@ -135,7 +136,7 @@ int main(int ac, char** av)
 
   err = 0;
 
-  dext_close(&dext);
+  dext_destroy(dext);
  on_error_1:
   dext_fini();
  on_error_0:

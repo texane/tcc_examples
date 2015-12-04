@@ -19,7 +19,7 @@ int main(int ac, char** av)
   static const double w = 100 * 2 * 3.1415;
   static const double dt = 0.0001;
   unsigned int i;
-  dext_handle_t dext;
+  dext_handle_t* dext;
 
   if (dext_init())
   {
@@ -27,17 +27,18 @@ int main(int ac, char** av)
     goto on_error_0;
   }
 
-  if (dext_open_c(&dext, s, NULL))
+  dext = dext_create_c("sin", s, NULL);
+  if (dext == NULL)
   {
     printf("dext_open_c error\n");
     goto on_error_1;
   }
 
   for (i = 0; i != n; ++i) x[i] = 0.0;
-  dext_exec4(&dext, x, n, w, dt);
+  dext_exec4(dext, x, n, w, dt);
   for (i = 0; i != n; ++i) printf("%lf\n", x[i]);
 
-  dext_close(&dext);
+  dext_destroy(dext);
  on_error_1:
   dext_fini();
  on_error_0:

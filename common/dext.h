@@ -9,25 +9,27 @@
 
 typedef struct dext_sym
 {
-  const char* name;
+  const char* id;
   const char* decl;
   void* addr;
 } dext_sym_t;
 
-#define DEXT_INVALID_SYM { .name = NULL, }
+#define DEXT_INVALID_SYM { .id = NULL, }
 
 
 typedef struct dext_handle
 {
   TCCState* tcc;
   void (*f)();
+  char* id;
 } dext_handle_t;
 
 
 int dext_init(void);
 void dext_fini(void);
-int dext_open_c(dext_handle_t*, const char*, const dext_sym_t*);
-void dext_close(dext_handle_t*);
+dext_handle_t* dext_create_c(const char*, const char*, const dext_sym_t*);
+void dext_destroy(dext_handle_t*);
+dext_handle_t* dext_find(const char*);
 
 #define dext_exec(__h) \
 ((__h)->f())
