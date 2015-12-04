@@ -135,9 +135,9 @@ int main(int ac, char** av)
 
   err = 0;
 
- on_error_1:
   dext_close(&dext);
+ on_error_1:
+  dext_fini();
  on_error_0:
-  if (err) printf("error\n");
   return err;
 }

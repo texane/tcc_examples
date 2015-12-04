@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-ARCH=local
+ARCH=seco_imx6
 
 source ../common/compile.sh
 
