@@ -35,7 +35,6 @@ int main(int ac, char** av)
 
   for (i = 0; i != n; ++i) x[i] = 0.0;
   dext_exec4(&dext, x, n, w, dt);
-  dext_exec4(&dext, x, n, w, dt);
   for (i = 0; i != n; ++i) printf("%lf\n", x[i]);
 
   dext_close(&dext);
