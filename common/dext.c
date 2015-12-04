@@ -23,6 +23,9 @@ void dext_fini(void)
 
 static void on_tcc_error(void* err, const char* msg)
 {
+  /* skip this warning */
+#define SOFTFP_WARN "<string>:1: warning: soft float ABI"
+  if (strncmp(SOFTFP_WARN, msg, sizeof(SOFTFP_WARN) - 1) == 0) return ;
   *(int*)err = -1;
 }
 
