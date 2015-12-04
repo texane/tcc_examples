@@ -131,7 +131,7 @@ int main(int ac, char** av)
 
   printf("times: %lfus, %lfus\n", us[0], us[1]);
 
-  /* matmul_print(y, n); */
+  matmul_print(y, n);
 
   err = 0;
 
