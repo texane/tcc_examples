@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
-#include "../common/dext.h"
+#include "dext.h"
 
 
 /* timing */
@@ -105,11 +105,23 @@ int main(int ac, char** av)
     goto on_error_0;
   }
 
-  dext = dext_create_c("matmul", s, NULL);
+  dext = dext_create("matmul");
   if (dext == NULL)
   {
-    printf("dext_open_c error\n");
+    printf("dext_create error\n");
     goto on_error_1;
+  }
+
+  if (dext_add(dext, s))
+  {
+    printf("dext_add error\n");
+    goto on_error_2;
+  }
+
+  if (dext_compile(dext, NULL))
+  {
+    printf("dext_compile error\n");
+    goto on_error_2;
   }
 
   ticks[0] = get_ticks();
@@ -136,6 +148,7 @@ int main(int ac, char** av)
 
   err = 0;
 
+ on_error_2:
   dext_destroy(dext);
  on_error_1:
   dext_fini();

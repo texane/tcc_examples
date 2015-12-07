@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include "libtcc.h"
 
 
@@ -19,16 +20,22 @@ typedef struct dext_sym
 
 typedef struct dext_handle
 {
+  char* id;
   TCCState* tcc;
   void (*f)();
-  char* id;
+  char* code;
+  size_t len;
 } dext_handle_t;
 
 
 int dext_init(void);
 void dext_fini(void);
-dext_handle_t* dext_create_c(const char*, const char*, const dext_sym_t*);
+dext_handle_t* dext_create(const char*);
 void dext_destroy(dext_handle_t*);
+int dext_add(dext_handle_t*, const char*);
+void dext_clear(dext_handle_t*);
+int dext_compile(dext_handle_t*, const dext_sym_t*);
+unsigned int dext_is_compiled(dext_handle_t*);
 dext_handle_t* dext_find(const char*);
 
 #define dext_exec(__h) \
@@ -48,6 +55,31 @@ dext_handle_t* dext_find(const char*);
 
 #define dext_exec5(__h, __a, __b, __c, __d, __e) \
 ((__h)->f(__a, __b, __c, __d, __e))
+
+
+/* menu */
+
+#define fmtDEXTID fmtLABEL
+
+/* DEXT <DEXTID> LINE <LINE> */
+/* DEXT <DEXTID> CLEAR */
+/* DEXT <DEXTID> EXEC [ ARGS ] */
+#define fmtDEXT			\
+ fmtDEXTID			\
+ "{"				\
+ "   (T#LINE " fmtSTR ")"	\
+ " | (T#CLEAR)"			\
+ " | (T#EXEC nF)"		\
+ "}"
+
+/* ?DEXT [ <DEXTID> ] */
+#define fmtqDEXT "o" fmtDEXTID
+
+#define DEXT_MENU_LIST							\
+ MENU_IT(DEXT, fmtDEXT, fmtNONE, _B, "set a dance extension conf")	\
+ MENU_IT(qDEXT, fmtqDEXT, fmtSTR, _B, "get dance a extension conf")
+
+#define DEXT_LISTS
 
 
 #endif /* DEXT_H_INCLUDED */

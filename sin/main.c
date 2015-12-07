@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "../common/dext.h"
+#include "dext.h"
 
 
 #define L(__s) __s "\n"
@@ -27,17 +27,30 @@ int main(int ac, char** av)
     goto on_error_0;
   }
 
-  dext = dext_create_c("sin", s, NULL);
+  dext = dext_create("sin");
   if (dext == NULL)
   {
-    printf("dext_open_c error\n");
+    printf("dext_create error\n");
     goto on_error_1;
+  }
+
+  if (dext_add(dext, s))
+  {
+    printf("dext_add error\n");
+    goto on_error_2;
+  }
+
+  if (dext_compile(dext, NULL))
+  {
+    printf("dext_compile error\n");
+    goto on_error_2;
   }
 
   for (i = 0; i != n; ++i) x[i] = 0.0;
   dext_exec4(dext, x, n, w, dt);
   for (i = 0; i != n; ++i) printf("%lf\n", x[i]);
 
+ on_error_2:
   dext_destroy(dext);
  on_error_1:
   dext_fini();

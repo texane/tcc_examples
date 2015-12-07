@@ -34,3 +34,6 @@ exit -1
 fi
 
 TCC_INC_DIR=$TCC_DIR/include
+
+DEXT_DIR=../common
+# DEXT_DIR=$HOME/segfs/repo/gaia/DanceTree/components/libdance/src

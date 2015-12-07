@@ -1,6 +1,7 @@
 /* dance extension */
 /* user provided codes, typically used as computation kernels */
 /* C compilation based on http://bellard.org/tcc/ */
+/* see libdance/doc/HOWTOs/dext-HOWTO.txt */
 
 
 #include <stdlib.h>
@@ -9,6 +10,10 @@
 #include <sys/types.h>
 #include "dext.h"
 #include "libtcc.h"
+
+#ifndef DEXT_UNIT
+#include "libdance.h"
+#endif /* DEXT_UNIT */
 
 
 #define DEXT_MAX_COUNT 32
@@ -36,6 +41,63 @@ void dext_fini(void)
 }
 
 
+dext_handle_t* dext_create(const char* id)
+{
+  dext_handle_t* dext;
+  size_t i;
+
+  /* find free dext */
+  dext = NULL;
+  for (i = 0; (i != DEXT_MAX_COUNT) && (g_dext[i].id != NULL); ++i) ;
+  if (i == DEXT_MAX_COUNT) return NULL;
+  dext = &g_dext[i];
+
+  dext->id = malloc(strlen(id) + 1);
+  if (dext->id == NULL) return NULL;
+  strcpy(dext->id, id);
+
+  dext->tcc = NULL;
+  dext->code = NULL;
+  dext->len = 0;
+
+  return dext;
+}
+
+
+void dext_destroy(dext_handle_t* dext)
+{
+  free(dext->id);
+  dext->id = NULL;
+  if (dext->tcc != NULL) tcc_delete(dext->tcc);
+  if (dext->code != NULL) free(dext->code);
+}
+
+
+int dext_add(dext_handle_t* dext, const char* s)
+{
+  /* add code to extension */
+
+  const size_t new_len = dext->len + strlen(s);
+
+  dext->code = realloc(dext->code, new_len + 1);
+  if (dext->code == NULL) return -1;
+
+  strcpy(dext->code + dext->len, s);
+  dext->len = new_len;
+
+  return 0;
+}
+
+
+void dext_clear(dext_handle_t* dext)
+{
+  /* clear extension code */
+
+  if (dext->code != NULL) free(dext->code);
+  dext->code = NULL;
+}
+
+
 static void on_tcc_error(void* err, const char* msg)
 {
   /* skip this warning */
@@ -44,10 +106,10 @@ static void on_tcc_error(void* err, const char* msg)
   *(int*)err = -1;
 }
 
-
-dext_handle_t* dext_create_c
-(const char* id, const char* s, const dext_sym_t* app_syms)
+int dext_compile(dext_handle_t* dext, const dext_sym_t* app_syms)
 {
+  /* compile the extension code */
+
   const dext_sym_t default_syms[] =
   {
     /* dance specific symbols */
@@ -55,35 +117,26 @@ dext_handle_t* dext_create_c
     /* math symbols */
     { "sin", "double sin(double);", sin },
     { "cos", "double cos(double);", cos },
+    { "tan", "double tan(double);", tan },
+    { "pow", "double pow(double, double);", pow },
     { "sqrt", "double sqrt(double);", sqrt },
     { "fabs", "double fabs(double);", fabs },
 
     DEXT_INVALID_SYM
   };
 
-  dext_handle_t* dext;
   size_t nsym;
   size_t i;
   size_t j;
   size_t new_len;
-  char* new_s;
+  char* new_code;
   char* new_p;
   int err = -1;
-
-  /* find free dext */
-  dext = NULL;
-  for (i = 0; (i != DEXT_MAX_COUNT) && (g_dext[i].id != NULL); ++i) ;
-  if (i == DEXT_MAX_COUNT) goto on_error_0;
-  dext = &g_dext[i];
-
-  dext->id = malloc(strlen(id) + 1);
-  if (dext->id == NULL) goto on_error_0;
-  strcpy(dext->id, id);
 
   /* allocate and setup tcc state */
 
   dext->tcc = tcc_new();
-  if (dext->tcc == NULL) goto on_error_1;
+  if (dext->tcc == NULL) goto on_error_0;
 
   tcc_set_options(dext->tcc, "-static -nostdlib -nostdinc");
   tcc_set_output_type(dext->tcc, TCC_OUTPUT_MEMORY);
@@ -104,12 +157,11 @@ dext_handle_t* dext_create_c
     nsym += i;
   }
 
-  new_len += strlen(s);
-
-  new_s = malloc(new_len + 1);
-  if (new_s == NULL) goto on_error_2;
+  new_len += strlen(dext->code);
+  new_code = malloc(new_len + 1);
+  if (new_code == NULL) goto on_error_1;
   
-  new_p = new_s;
+  new_p = new_code;
 
   for (i = 0; default_syms[i].id != NULL; ++i)
   {
@@ -128,18 +180,22 @@ dext_handle_t* dext_create_c
     }
   }
 
-  strcpy(new_p, s);
+  strcpy(new_p, dext->code);
 
   /* compile and relocate the code */
 
   err = 0;
   tcc_set_error_func(dext->tcc, &err, on_tcc_error);
-  if ((tcc_compile_string(dext->tcc, new_s) == -1) || (err)) goto on_error_3;
+  if ((tcc_compile_string(dext->tcc, new_code) == -1) || (err))
+  {
+    err = -1;
+    goto on_error_2;
+  }
 
   if (tcc_relocate(dext->tcc, TCC_RELOCATE_AUTO) < 0)
   {
     err = -1;
-    goto on_error_3;
+    goto on_error_2;
   }
 
   /* resolve entry point */
@@ -148,37 +204,34 @@ dext_handle_t* dext_create_c
   if (dext->f == NULL)
   {
     err = -1;
-    goto on_error_3;
+    goto on_error_2;
   }
 
- on_error_3:
-  free(new_s);
+ on_error_2:
+  free(new_code);
 
   if (err)
   {
-  on_error_2:
-    tcc_delete(dext->tcc);
   on_error_1:
-    free(dext->id);
-    dext->id = NULL;
-    dext = NULL;
+    tcc_delete(dext->tcc);
+    dext->tcc = NULL;
   }
 
  on_error_0:
-  return dext;
+  return err;
 }
 
 
-void dext_destroy(dext_handle_t* dext)
+unsigned int dext_is_compiled(dext_handle_t* dext)
 {
-  free(dext->id);
-  dext->id = NULL;
-  tcc_delete(dext->tcc);
+  return dext->tcc != NULL;
 }
 
 
 dext_handle_t* dext_find(const char* id)
 {
+  /* find an extension by id */
+
   size_t i;
 
   for (i = 0; i != DEXT_MAX_COUNT; ++i)
@@ -190,3 +243,152 @@ dext_handle_t* dext_find(const char* id)
 
   return NULL;
 }
+
+
+#ifndef DEXT_UNIT
+
+/* commands */
+
+void commexec_DEXT(void)
+{
+  /* parse */
+
+  const char* const id = I_LABEL();
+  dext_handle_t* dext;
+
+  dext = dext_find(id);
+
+  while (1)
+  {
+    const int fmt_num = I_FMT_NUM();
+
+    if (fmt_num < 0) break ;
+
+    if (fmt_num == 0)
+    {
+      I_NEXT_FMT();
+      continue ;
+    }
+
+    switch (I_FMT_TYPE())
+    {
+    case FMT_TAG:
+    {
+      if (I_FMT_NAME("LINE"))
+      {
+	unsigned int was_created = 0;
+
+	if (dext == NULL)
+	{
+	  dext = dext_create(id);
+	  if (dext == NULL)
+	  {
+	    errorf("could not create extension");
+	    return ;
+	  }
+	  was_created = 1;
+	}
+
+	I_NEXT_FMT();
+
+	if (dext_add(dext, I_STRING()))
+	{
+	  errorf("could not add line");
+	  if (was_created) dext_destroy(dext);
+	  return ;
+	}
+      }
+      else if (I_FMT_NAME("CLEAR"))
+      {
+	if (dext == NULL)
+	{
+	  errorf("extension not found");
+	  return ;
+	}
+
+	dext_clear(dext);
+      }
+      else if (I_FMT_NAME("EXEC"))
+      {
+	static const size_t n = 5 + 1;
+	size_t i;
+	double x[n];
+
+	if (dext == NULL)
+	{
+	  errorf("extension not found");
+	  return ;
+	}
+
+	if (dext_is_compiled(dext) == 0)
+	{
+	  if (dext_compile(dext, NULL))
+	  {
+	    errorf("compilation error");
+	    return ;
+	  }
+	}
+
+	I_NEXT_FMT();
+
+	i = 0;
+	while ((I_FMT_NUM() > 0) && (I_FMT_TYPE() == FMT_FLOAT))
+	{
+	  x[i++] = I_FLOAT();
+	  if (i == n) break ;
+	}
+
+	switch (i)
+	{
+	case 0: dext_exec(dext); break ;
+	case 1: dext_exec1(dext, x[0]); break ;
+	case 2: dext_exec2(dext, x[0], x[1]); break ;
+	case 3: dext_exec3(dext, x[0], x[1], x[2]); break ;
+	case 4: dext_exec4(dext, x[0], x[1], x[2], x[3]); break ;
+	case 5: dext_exec5(dext, x[0], x[1], x[2], x[3], x[4]); break ;
+	default: errorf("too many arguments"); break ;
+	}
+      }
+
+      break ;
+    }
+
+    default:
+    {
+      errorf("invalid command");
+      return ;
+    }
+    }
+  }
+  
+}
+
+void commexec_qDEXT(void)
+{
+  const char* const id = I_LABEL();
+
+  if (id == DEFAULT_LABEL)
+  {
+    size_t i;
+    for (i = 0; i != DEXT_MAX_COUNT; ++i)
+    {
+      dext_handle_t* const dext = &g_dext[i];
+      if (dext->id == NULL) continue ;
+      answerf("%s\n", dext->id);
+    }
+  }
+  else
+  {
+    dext_handle_t* dext = dext_find(id);
+    if (dext == NULL)
+    {
+      errorf("invalid id");
+      return ;
+    }
+
+    if (dext->code != NULL) answerf("%s", dext->code);
+    answerf("\n");
+  }
+}
+
+#endif /* DEXT_UNIT */
